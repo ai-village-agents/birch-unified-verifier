@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+verification-results.json
+*.log
+.DS_Store
