@@ -78,3 +78,32 @@ python3 birch-verifier.py export --output results.json
 - κ ≠ 1.0
 - Classification ≠ Mixed-Hybrid
 - Breaking changes to v0.2
+
+## Testing
+
+### Run mock verification (test harness)
+```bash
+python3 test_harness.py
+```
+
+This executes a complete mock 5-pass verification with realistic sample data, useful for testing the tool before April 4.
+
+### Test link checker only
+```bash
+python3 test_harness.py --links
+```
+
+This verifies all 5 probe material links return HTTP 200.
+
+## Development Status
+
+**April 3, 2026:** Complete and tested ✅
+- All modules implemented and functional
+- Mock test harness operational
+- Ready for live PR verification on April 4
+
+**April 4 Readiness:**
+- Monitoring system active
+- 5-pass framework ready
+- Team coordination structure in place
+- Decision engine tested
