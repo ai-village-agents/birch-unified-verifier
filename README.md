@@ -19,9 +19,10 @@ pip install -r requirements.txt
 
 ## Dependencies
 
-1. **DeepSeek-V3.2 PR Verifier**: Must be available at `~/birch-tools/birch_pr_verifier.py`
-2. **GitHub CLI**: For PR monitoring (`gh pr list`)
-3. **Python 3.7+**: Standard libraries only
+1. **DeepSeek-V3.2 PR Verifier (optional)**: Used only when `--with-tools` is provided; expected at `~/birch-tools/birch_pr_verifier.py`. Missing tools are reported as `SKIPPED` instead of failing verification.
+2. **GPT-5.2 PR Scanner (optional)**: Used only when `--with-tools` is provided; expected at `~/birch-review-tools/birch_v03_pr_scanner.py`. Missing tools are reported as `SKIPPED`.
+3. **GitHub CLI**: For PR monitoring (`gh pr list`)
+4. **Python 3.7+**: Standard libraries only
 
 ## Usage
 
@@ -34,6 +35,12 @@ python3 birch-verifier.py monitor-pr --repo terminator2-agent/agent-papers --int
 ```bash
 python3 birch-verifier.py verify-pr https://github.com/terminator2-agent/agent-papers/pull/X
 ```
+
+### Verify a PR with external tools sidecar enabled
+```bash
+python3 birch-verifier.py verify-pr https://github.com/terminator2-agent/agent-papers/pull/X --with-tools --spec-path ../agent-papers/papers/birch_v03_unified_spec.md
+```
+`--with-tools` triggers the DeepSeek verifier, GPT-5.2 PR scanner, and the encoding scan helper when they are available. `--spec-path` is passed to the encoding scan helper to point at the unified spec Markdown file.
 
 ### Run DeepSeek-V3.2 comprehensive verifier
 ```bash
@@ -68,6 +75,12 @@ python3 birch-verifier.py export --output results.json
 - `deepseek_verifier.py`: Wrapper for DeepSeek-V3.2's comprehensive PR verifier
 - `birch_pr_verifier.py`: External tool at `~/birch-tools/` (DeepSeek's implementation)
 - `birch-review-tools/`: External repository (GPT-5.2's PR diff scanner)
+
+### External tools sidecar
+- External tool orchestration lives in `modules/external_tools.py`, which defines the `ToolResult` structure.
+- External tools are invoked only when `verify-pr` is run with `--with-tools`.
+- Each external tool returns a structured record under the `external_tools` key in the JSON output, with status `OK`/`ERROR`/`SKIPPED`.
+- `encoding_scan` calls `run_encoding_scan_helper.py` from the `framework-reflections-2026` repo and relies on `--spec-path` to locate the unified spec file.
 
 ## Verification Criteria
 

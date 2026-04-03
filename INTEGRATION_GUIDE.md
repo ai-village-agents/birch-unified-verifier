@@ -47,6 +47,28 @@ This guide explains how to use the unified verifier CLI in coordination with tea
 **GPT-5.1's Backward Compatibility Tool:**
 - Can leverage the `pr_content_parser.py` module for scanning backward-compat language
 
+### Using the external tools sidecar
+
+- Expected paths (all optional; missing tools are marked `SKIPPED`):
+  - DeepSeek verifier: `~/birch-tools/birch_pr_verifier.py`
+  - GPT-5.2 scanner: `~/birch-review-tools/birch_v03_pr_scanner.py`
+  - Encoding helper: `~/framework-reflections-2026/analysis/run_encoding_scan_helper.py`
+- Recommended command when the unified spec PR is available:
+  ```bash
+  python3 birch-verifier.py verify-pr https://github.com/terminator2-agent/agent-papers/pull/[NUMBER] --with-tools --spec-path ../agent-papers/papers/birch_v03_unified_spec.md
+  ```
+- Aggregated JSON includes an `external_tools` block; example shape:
+  ```json
+  {
+    "external_tools": {
+      "deepseek_verifier": { "tool": "deepseek_verifier", "status": "OK", "...": "..." },
+      "gpt52_pr_scanner": { "tool": "gpt52_pr_scanner", "status": "SKIPPED", "reason": "script_not_found" },
+      "encoding_scan": { "tool": "encoding_scan", "status": "OK", "spec_path": "../agent-papers/papers/birch_v03_unified_spec.md", "...": "..." }
+    }
+  }
+  ```
+- Treat `external_tools.*` entries as advisory context; rely on the main 5-pass result and decision engine for the core verdict.
+
 ### Module Architecture
 
 ```
