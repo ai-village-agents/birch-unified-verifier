@@ -5,6 +5,7 @@ Usage: python3 birch-verifier.py <command> [options]
 Commands:
   - monitor-pr: Monitor for new PR in terminator2-agent/agent-papers
   - verify-pr <pr_url>: Execute 5-pass verification on a PR
+  - deepseek-verify <pr_url>: Run DeepSeek-V3.2's comprehensive verifier
   - check-links: Verify all 5 probe material links return HTTP 200
   - decide: Run decision automation against verification results
 """
@@ -22,6 +23,7 @@ from modules.five_pass_verifier import FivePassVerifier
 from modules.link_checker import LinkChecker
 from modules.decision_engine import DecisionEngine
 from modules.output_formatter import OutputFormatter
+from modules.deepseek_verifier import DeepSeekVerifier
 
 class BIRCHUnifiedVerifier:
     def __init__(self):
@@ -30,6 +32,7 @@ class BIRCHUnifiedVerifier:
         self.link_checker = LinkChecker()
         self.decision_engine = DecisionEngine()
         self.formatter = OutputFormatter()
+        self.deepseek_verifier = DeepSeekVerifier()
         self.results = {}
     
     def monitor_pr(self, repo="terminator2-agent/agent-papers", interval=30):
@@ -48,6 +51,107 @@ class BIRCHUnifiedVerifier:
         # Format and display results
         self.formatter.print_verification_results(results)
         return results
+    
+    def deepseek_verify(self, pr_url):
+        """Run DeepSeek-V3.2's comprehensive PR verifier"""
+        print(f"🔍 Running DeepSeek-V3.2 PR verifier on {pr_url}...")
+        print("=" * 60)
+        
+        if not self.deepseek_verifier.available:
+            print("❌ DeepSeek verifier not available")
+            print("Make sure ~/birch-tools/birch_pr_verifier.py exists")
+            return None
+        
+        results = self.deepseek_verifier.verify_pr_from_url(pr_url)
+        self.results['deepseek_verification'] = results
+        
+        # Display results
+        self._print_deepseek_results(results)
+        return results
+    
+    def _print_deepseek_results(self, results):
+        """Format and display DeepSeek verifier results"""
+        if 'error' in results:
+            print(f"❌ Error: {results['error']}")
+            return
+        
+        print(f"\n📊 DeepSeek-V3.2 PR Verification Results")
+        print("-" * 50)
+        print(f"PR #{results.get('pr_number', 'N/A')}")
+        print(f"Overall Status: {results.get('overall_status', 'UNKNOWN')}")
+        print(f"Exit Code: {results.get('exit_code', 'N/A')}")
+        
+        if results.get('issues'):
+            print(f"\n⚠️  Issues Found ({len(results['issues'])}):")
+            for issue in results['issues'][:10]:  # Show first 10 issues
+                print(f"  • {issue}")
+            if len(results['issues']) > 10:
+                print(f"  ... and {len(results['issues']) - 10} more issues")
+        
+        if results.get('red_flags'):
+            print(f"\n🚨 RED FLAGS ({len(results['red_flags'])}):")
+            for flag in results['red_flags']:
+                print(f"  ⚠️  {flag}")
+        
+        checks = results.get('checks', {})
+        if checks:
+            print(f"\n✅ Detailed Checks:")
+            
+            # Core URLs
+            core_urls = checks.get('core_urls', {})
+            if core_urls:
+                found = core_urls.get('found', 0)
+                total = core_urls.get('total_expected', 5)
+                print(f"  • Core Probe URLs: {found}/{total} found")
+            
+            # Amendment fields
+            amendment_fields = checks.get('amendment_fields', {})
+            if amendment_fields and amendment_fields.get('fields_found'):
+                print(f"  • Amendment Fields: {len(amendment_fields['fields_found'])} key fields found")
+            
+            # Backward compatibility
+            bc = checks.get('backward_compatibility', {})
+            if bc:
+                status = []
+                if bc.get('recommended_not_required'):
+                    status.append("RECOMMENDED ✓")
+                if bc.get('should_language'):
+                    status.append("SHOULD ✓")
+                if bc.get('essential_marking'):
+                    status.append("Essential ✓")
+                if status:
+                    print(f"  • Backward Compatibility: {', '.join(status)}")
+            
+            # Citations
+            citations = checks.get('citations', {})
+            if citations:
+                status = []
+                if citations.get('kappa_1_0'):
+                    status.append("κ=1.0 ✓")
+                if citations.get('mixed_hybrid'):
+                    status.append("Mixed-Hybrid ✓")
+                if status:
+                    print(f"  • Citations: {', '.join(status)}")
+            
+            # JSON Schema
+            schema = checks.get('json_schema', {})
+            if schema:
+                if schema.get('found'):
+                    print(f"  • JSON Schema: Found")
+                if schema.get('valid'):
+                    print(f"  • JSON Schema: Valid")
+        
+        print(f"\n📋 Details:")
+        for detail in results.get('details', []):
+            print(f"  • {detail}")
+        
+        # Decision input
+        decision_input = self.deepseek_verifier.get_decision_input()
+        if decision_input:
+            print(f"\n⚖️  Decision-Relevant Checks:")
+            for key, value in decision_input.items():
+                status = "✓" if value else "✗"
+                print(f"  {status} {key}")
     
     def check_probe_links(self):
         """Verify all 5 probe material links"""
@@ -100,8 +204,12 @@ def main():
     monitor_parser.add_argument('--interval', type=int, default=30, help='Check interval in seconds')
     
     # Verify command
-    verify_parser = subparsers.add_parser('verify-pr', help='Verify a PR')
+    verify_parser = subparsers.add_parser('verify-pr', help='Verify a PR with 5-pass framework')
     verify_parser.add_argument('pr_url', help='PR URL to verify')
+    
+    # DeepSeek verify command
+    deepseek_parser = subparsers.add_parser('deepseek-verify', help='Run DeepSeek-V3.2 comprehensive verifier')
+    deepseek_parser.add_argument('pr_url', help='PR URL to verify')
     
     # Check links command
     subparsers.add_parser('check-links', help='Verify probe material links')
@@ -125,6 +233,8 @@ def main():
         verifier.monitor_pr(args.repo, args.interval)
     elif args.command == 'verify-pr':
         verifier.verify_pr(args.pr_url)
+    elif args.command == 'deepseek-verify':
+        verifier.deepseek_verify(args.pr_url)
     elif args.command == 'check-links':
         verifier.check_probe_links()
     elif args.command == 'decide':
